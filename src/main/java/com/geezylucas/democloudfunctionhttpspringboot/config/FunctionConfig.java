@@ -3,8 +3,8 @@ package com.geezylucas.democloudfunctionhttpspringboot.config;
 import com.geezylucas.democloudfunctionhttpspringboot.dto.ProductResponseDTO;
 import com.geezylucas.democloudfunctionhttpspringboot.dto.PubSubBodyDTO;
 import com.google.cloud.spring.pubsub.core.publisher.PubSubPublisherTemplate;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.function.adapter.gcp.FunctionInvoker;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,18 +19,26 @@ import java.util.function.Function;
 
 @Slf4j
 @Configuration
-@RequiredArgsConstructor
 public class FunctionConfig {
 
     private final WebClient webClient;
     private final PubSubPublisherTemplate pubSubPublisherTemplate;
 
+    public FunctionConfig(@Value("${external.uri}") String uri,
+                          WebClient.Builder webClientBuilder,
+                          PubSubPublisherTemplate pubSubPublisherTemplate) {
+        this.webClient = webClientBuilder
+                .baseUrl(uri)
+                .build();
+        this.pubSubPublisherTemplate = pubSubPublisherTemplate;
+    }
+
     @Bean
     public Function<Mono<PubSubBodyDTO>, Message<String>> function() {
         return input -> input
-                .doOnNext(it -> log.info("Function invoked with message: {}", it))
+                .doOnNext(pubSubBodyDTO -> log.info("PubSub Body: {}", pubSubBodyDTO))
                 .map(pubSubBodyDTO -> new String(Base64.getDecoder().decode(pubSubBodyDTO.message().data()), StandardCharsets.UTF_8))
-                .doOnNext(s -> log.info("Received Pub/Sub message: {}", s))
+                .doOnNext(pubSubMessage -> log.info("PubSub Message: {}", pubSubMessage))
                 .flatMap(s -> webClient
                         .get()
                         .uri(uriBuilder -> uriBuilder
@@ -38,13 +46,15 @@ public class FunctionConfig {
                                 .build(s))
                         .retrieve()
                         .bodyToMono(ProductResponseDTO.class)
+                        .log()
                 )
                 .flatMap(productResponseDTO -> Mono.fromFuture(pubSubPublisherTemplate.publish("my-function-topic", productResponseDTO.title())))
-                .map(uuid -> MessageBuilder
-                        .withPayload(uuid)
+                .map(messageId -> MessageBuilder
+                        .withPayload(messageId)
                         .setHeader(FunctionInvoker.HTTP_STATUS_CODE, 200)
                         .build()
                 )
+                .doOnSuccess(signal -> log.info("Function invoked successfully: {}", signal))
                 .block();
     }
 }

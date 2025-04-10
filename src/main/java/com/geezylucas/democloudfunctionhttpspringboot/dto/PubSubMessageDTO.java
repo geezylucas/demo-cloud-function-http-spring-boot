@@ -1,5 +1,7 @@
 package com.geezylucas.democloudfunctionhttpspringboot.dto;
 
+import lombok.Builder;
+
 import java.util.Map;
 
 /**
@@ -11,6 +13,7 @@ import java.util.Map;
  *
  * @author Mike Eltsufin
  */
+@Builder
 public record PubSubMessageDTO(String data,
                                Map<String, String> attributes,
                                String messageId,
