@@ -1,4 +1,4 @@
-package com.geezylucas.democloudfunctionhttpspringboot;
+package com.geezylucas.democloudfunctionhttpspringboot.config;
 
 import com.geezylucas.democloudfunctionhttpspringboot.dto.PubSubBodyDTO;
 import com.geezylucas.democloudfunctionhttpspringboot.dto.PubSubMessageDTO;
