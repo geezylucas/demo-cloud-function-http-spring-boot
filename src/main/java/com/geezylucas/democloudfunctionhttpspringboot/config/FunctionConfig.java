@@ -21,6 +21,9 @@ import java.util.function.Function;
 @Configuration
 public class FunctionConfig {
 
+    @Value("${gcloud.pubsub.topic-name}")
+    private String topicName;
+
     private final WebClient webClient;
     private final PubSubPublisherTemplate pubSubPublisherTemplate;
 
@@ -48,7 +51,7 @@ public class FunctionConfig {
                         .bodyToMono(ProductResponseDTO.class)
                         .log()
                 )
-                .flatMap(productResponseDTO -> Mono.fromFuture(pubSubPublisherTemplate.publish("my-function-topic", productResponseDTO.title())))
+                .flatMap(productResponseDTO -> Mono.fromFuture(pubSubPublisherTemplate.publish(topicName, productResponseDTO.title())))
                 .map(messageId -> MessageBuilder
                         .withPayload(messageId)
                         .setHeader(FunctionInvoker.HTTP_STATUS_CODE, 200)
